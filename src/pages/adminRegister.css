@@ -1,0 +1,155 @@
+/* ===== PAGE BACKGROUND ===== */
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #0f172a, #1f2937, #020617);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ===== ADMIN CARD ===== */
+.admin-setup-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.admin-card {
+  width: 420px;
+  padding: 40px;
+  border-radius: 18px;
+  background: rgba(31, 41, 55, 0.95);
+  box-shadow: 0 25px 45px rgba(0, 0, 0, 0.6);
+  color: #f3f4f6;
+  animation: fadeIn 0.4s ease;
+  text-align: center;
+}
+
+.admin-card h2 {
+  margin-bottom: 15px;
+  font-size: 24px;
+}
+
+.admin-card p {
+  font-size: 14px;
+  margin-bottom: 20px;
+  color: #f87171;
+}
+
+/* ===== INPUT FIELDS ===== */
+.admin-card input {
+  width: 100%;
+  height: 45px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  font-size: 15px;
+  border-radius: 10px;
+  border: 1px solid #374151;
+  background: #1f2937;
+  color: #f3f4f6;
+  transition: all 0.25s ease;
+}
+
+.admin-card input::placeholder {
+  color: #9ca3af;
+}
+
+.admin-card input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background: #111827;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+/* ===== BUTTON ===== */
+.admin-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.admin-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.4);
+}
+
+/* ===== DIALOG / MODAL ===== */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.dialog-box {
+  background: #1f2937;
+  padding: 25px 30px;
+  border-radius: 12px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  color: #f3f4f6;
+}
+
+.dialog-box h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #f87171;
+}
+
+.dialog-box p {
+  margin-bottom: 20px;
+  color: #f3f4f6;
+}
+
+.dialog-box button {
+  padding: 8px 18px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.dialog-box button:hover {
+  background: #1e40af;
+}
+
+/* ===== CARD ANIMATION ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .admin-card {
+    width: 90%;
+    padding: 30px;
+  }
+}

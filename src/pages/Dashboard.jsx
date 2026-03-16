@@ -1,0 +1,283 @@
+import React, { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FaUser, FaSignOutAlt, FaBox, FaUsers,
+  FaChartLine, FaTrash, FaCalendarAlt, FaExclamationTriangle
+} from "react-icons/fa";
+
+import StockPage from "./StockPage";
+import EmployeePage from "./EmployeePage";
+import EmployeeEarnings from "./EmployeeEarnings";
+import DailyEarnings from "./DailyEarnings";
+import TotalEarningsCard from "./TotalEarningsCard";
+
+function Dashboard() {
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user"));
+  const isLoggedIn = localStorage.getItem("isLoggedIn");
+  const role = user?.role;
+  const section = user?.section;
+
+  const [page, setPage] = useState("dashboard");
+  const [interval, setIntervalTime] = useState(new Date());
+  const [earnings, setEarnings] = useState("");
+
+  const [reportData, setReportData] = useState({
+  dailyEarnings: 0,
+  dailyHistory: []
+});
+  const [submissions, setSubmissions] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+
+  // Fetch report and earnings data
+  const fetchData = useCallback(async () => {
+  try {
+    const [reportRes, historyRes] = await Promise.all([
+      fetch("http://localhost:5000/api/reports"),
+      fetch("http://localhost:5000/api/earnings")
+    ]);
+
+    const reportJson = await reportRes.json();
+    const historyJson = await historyRes.json();
+
+    const formattedDaily = (reportJson.dailyHistory || []).map(d => ({
+      date: d.date,
+      amount: d.total
+    }));
+
+    setReportData({
+      dailyEarnings: reportJson.dailyEarnings || 0,
+      dailyHistory: formattedDaily
+    });
+
+    setSubmissions(historyJson || []);
+
+  } catch (err) {
+    console.error("Data fetch error:", err);
+  }
+}, []);
+
+  // Initial login check and data fetch
+  useEffect(() => {
+    if (isLoggedIn !== "true" || !user) navigate("/");
+    else fetchData();
+  }, [isLoggedIn, navigate, user, fetchData]);
+
+  // Page change triggers data fetch
+  useEffect(() => {
+    if (page === "dashboard" || page === "reports") fetchData();
+  }, [page, fetchData]);
+
+  // Timer
+  useEffect(() => {
+  const clock = setInterval(() => {
+    setIntervalTime(new Date());
+  }, 1000);
+
+  return () => clearInterval(clock);
+}, []);
+
+  if (!user || isLoggedIn !== "true") return null;
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/");
+  };
+
+  // Submit daily earnings
+  const submitEarnings = async () => {
+  if (!earnings || isNaN(Number(earnings))) return;
+
+  try {
+    const response = await fetch("http://localhost:5000/api/earnings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ employeeEmail: user.email, amount: Number(earnings) })
+    });
+
+    if (response.ok) {
+      setEarnings("");
+
+      // Do NOT manually update charts or monthly earnings
+      // Just refetch data from the server
+      await fetchData();
+
+      setPage("reports");
+    }
+  } catch (err) {
+    console.error("Submit error:", err);
+  }
+};
+
+  const openDeleteDialog = (id) => {
+    setSelectedId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/earnings/${selectedId}`, { method: "DELETE" });
+      if (response.ok) {
+        setShowDeleteModal(false);
+        await fetchData();
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif" }}>
+      {/* Sidebar */}
+      <aside style={{ width: "250px", backgroundColor: "#1f2933", color: "#fff", padding: "30px 20px", display: "flex", flexDirection: "column" }}>
+        <h2 style={{ marginBottom: "30px", fontSize: "16px" }}>Farm Ops</h2>
+        <nav style={{ display: "flex", flexDirection: "column", gap: "20px", flex: 1 }}>
+          <div onClick={() => setPage("dashboard")} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", color: page === "dashboard"? "#4e73df" : "#fff" }}>
+            <FaUser /> Dashboard
+          </div>
+          {role === "admin" && (
+            <div onClick={() => setPage("employees")} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", color: page === "employees"? "#4e73df" : "#fff" }}>
+              <FaUsers /> Employees
+            </div>
+          )}
+          {(section === "Inventory" || role === "admin") && (
+            <div onClick={() => setPage("stock")} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", color: page === "stock"? "#4e73df" : "#fff" }}>
+              <FaBox /> Inventory
+            </div>
+          )}
+          <div onClick={() => setPage("reports")} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", color: page === "reports"? "#4e73df" : "#fff" }}>
+            <FaChartLine /> Reports
+          </div>
+          <div onClick={handleLogout} style={{ cursor: "pointer", marginTop: "auto", color: "#ff6b6b", display: "flex", alignItems: "center", gap: "10px" }}>
+            <FaSignOutAlt /> Logout
+          </div>
+        </nav>
+      </aside>
+
+      {/* Main */}
+      <main style={{ flex: 1, backgroundColor: "#f4f6f8", overflowY: "auto", position: "relative" }}>
+        <header style={{ padding: "20px 40px", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#fff", borderBottom: "1px solid #e3e6f0" }}>
+          <div style={{ fontSize: "16px", color: "#333", fontWeight: "bold" }}>
+            Welcome back, {user.firstName || "User"} 
+            <span style={{ fontSize: "12px", color: "#888", marginLeft: "10px", textTransform: "uppercase" }}>
+              ({role})
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#666", fontSize: "14px" }}>
+            <FaCalendarAlt /> {interval.toLocaleDateString()} - {interval.toLocaleTimeString()}
+          </div>
+        </header>
+
+        {/* Dashboard cards and charts */}
+        {page === "dashboard" && (
+          <>
+           <div style={{ padding: "40px", display: "flex", gap: "20px" }}>
+
+  <div style={{ padding: "40px", display: "flex", gap: "20px" }}>
+
+  <div style={{ flex: 1, background: "#4e73df", color: "#fff", padding: "25px", borderRadius: "10px" }}>
+    <div style={{ fontSize: "12px", fontWeight: "bold" }}>DAILY EARNINGS</div>
+    <div style={{ fontSize: "28px", fontWeight: "bold" }}>
+      ${reportData.dailyEarnings.toLocaleString()}
+    </div>
+  </div>
+
+  <TotalEarningsCard />
+
+</div>
+
+</div>
+          
+            <div style={{ padding: "0 40px 40px", display: "flex", gap: "20px", flexWrap: "wrap" }}>
+  <div
+    style={{
+      flex: 1,
+      background: "#fff",
+      padding: "20px",
+      borderRadius: "10px",
+      minWidth: "400px",
+      boxShadow: "0 4px 6px rgba(0,0,0,0.1)"
+    }}
+  >
+    <DailyEarnings data={reportData.dailyHistory || []} />
+  </div>
+</div>
+
+          </>
+
+          
+        )}
+
+        {page === "employees" && role === "admin" && <EmployeePage />}
+        {page === "stock" && (section === "Inventory" || role === "admin") && <StockPage />}
+
+        {page === "reports" && (role === "admin" ? (
+          <div style={{ padding: "40px" }}>
+            <h2>Reports (Admin View)</h2>
+            <div style={{ background: "#fff", padding: "20px", borderRadius: "10px", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
+              <h3>Submit Daily Income</h3>
+              <input
+                type="number"
+                placeholder="Daily Income"
+                value={earnings}
+                onChange={e => setEarnings(e.target.value)}
+                style={{ padding: "10px", width: "200px", marginRight: "10px", border: "1px solid #ddd", borderRadius: "4px" }}
+              />
+              <button
+                onClick={submitEarnings}
+                style={{ padding: "10px 20px", background: "#4e73df", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}
+              >Submit</button>
+
+              <div style={{ marginTop: "30px", borderTop: "1px solid #eee", paddingTop: "20px" }}>
+                <h3>Submission History</h3>
+                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #f4f6f8", textAlign: "left", color: "#4e73df" }}>
+                      <th style={{ padding: "12px" }}>Employee</th>
+                      <th style={{ padding: "12px" }}>Amount</th>
+                      <th style={{ padding: "12px" }}>Date</th>
+                      {role === "admin" && <th style={{ padding: "12px", textAlign: "center" }}>Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissions.map(item => (
+                      <tr key={item._id} style={{ borderBottom: "1px solid #eee" }}>
+                        <td style={{ padding: "12px" }}>{item.employeeEmail}</td>
+                        <td style={{ padding: "12px", fontWeight: "bold" }}>${item.amount.toLocaleString()}</td>
+                        <td style={{ padding: "12px" }}>{new Date(item.createdAt).toLocaleDateString()}</td>
+                        {role === "admin" && (
+                          <td style={{ padding: "12px", textAlign: "center" }}>
+                            <button onClick={() => openDeleteDialog(item._id)} style={{ background: "none", border: "none", color: "#ff6b6b", cursor: "pointer" }}><FaTrash /></button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <EmployeeEarnings onSubmissionSuccess={fetchData} />
+        ))}
+
+        {showDeleteModal && (
+          <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+            <div style={{ background: "white", padding: "30px", borderRadius: "10px", width: "400px", textAlign: "center", boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }}>
+              <FaExclamationTriangle style={{ fontSize: "40px", color: "#f6c23e", marginBottom: "15px" }} />
+              <h3>Confirm Deletion</h3>
+              <p style={{ color: "#666" }}>This will remove the record. This action cannot be undone.</p>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "20px" }}>
+                <button onClick={() => setShowDeleteModal(false)} style={{ padding: "10px 20px", borderRadius: "5px", border: "1px solid #ddd", cursor: "pointer" }}>Cancel</button>
+                <button onClick={confirmDelete} style={{ padding: "10px 20px", borderRadius: "5px", border: "none", background: "#ff6b6b", color: "white", cursor: "pointer" }}>Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default Dashboard;
