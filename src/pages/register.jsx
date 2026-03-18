@@ -1,21 +1,28 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react"; // Import para sa visibility toggle
 import "./register.css";
 
 function Register() {
-
+  // Form States
   const [firstName, setFname] = useState("");
   const [middleName, setMname] = useState("");
   const [lastName, setLname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPass] = useState("");
-  const [section, setSection] = useState("Inventory");
+  const [confirmPassword, setConfirmPass] = useState("");
+  
+  // BAGUGO: Ginawang empty string para walang default selection
+  const [section, setSection] = useState("");
 
+  // Password Visibility States
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Status & UI States
   const [loading, setLoading] = useState(false);
-
   const [verificationCode, setVerificationCode] = useState("");
   const [showCodePopup, setShowCodePopup] = useState(false);
-
   const [dialog, setDialog] = useState({
     show: false,
     title: "",
@@ -31,11 +38,22 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!firstName || !lastName || !email || !password) {
+    // 1. Basic Field Validation (DAGDAG: Isinama ang !section sa check)
+    if (!firstName || !lastName || !email || !password || !confirmPassword || !section) {
       setDialog({
         show: true,
         title: "Error",
-        message: "Please fill all required fields."
+        message: "Pakisagutan ang lahat ng required fields, kabilang ang Assigned Section."
+      });
+      return;
+    }
+
+    // 2. Password Match Check
+    if (password !== confirmPassword) {
+      setDialog({
+        show: true,
+        title: "Error",
+        message: "Hindi magkatugma ang password!"
       });
       return;
     }
@@ -43,7 +61,7 @@ function Register() {
     setLoading(true);
 
     try {
-
+      // 3. Request OTP/Verification Code from Backend
       const response = await fetch("http://localhost:5000/api/send-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -55,46 +73,35 @@ function Register() {
       const data = await response.json();
 
       if (response.ok) {
-
         setShowCodePopup(true);
-
         setDialog({
           show: true,
-          title: "Verification",
-          message: "A verification code was sent to your email."
+          title: "Verification Sent",
+          message: "Isang code ang ipinadala sa iyong email para sa seguridad."
         });
-
       } else {
-
         setDialog({
           show: true,
           title: "Error",
-          message: data.error || "Failed to send verification code"
+          message: data.error || "Hindi maipadala ang code."
         });
-
       }
-
     } catch (err) {
-
       console.error("Send code error:", err);
-
       setDialog({
         show: true,
-        title: "Error",
-        message: "Server error"
+        title: "Server Error",
+        message: "Hindi makakonekta sa server."
       });
-
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const verifyAndRegister = async () => {
-
     setLoading(true);
-
     try {
-
+      // 4. Final Registration Step
       const response = await fetch("http://localhost:5000/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,111 +119,133 @@ function Register() {
       const data = await response.json();
 
       if (response.ok) {
-
         setDialog({
           show: true,
           title: "Success",
-          message: data.message
+          message: "Account created! Mag-antay ng approval mula sa Admin."
         });
-
         setShowCodePopup(false);
-
         setTimeout(() => {
           navigate("/");
-        }, 2000);
-
+        }, 3000);
       } else {
-
         setDialog({
           show: true,
           title: "Error",
-          message: data.error || "Registration failed"
+          message: data.error || "Mali ang verification code."
         });
-
       }
-
     } catch (err) {
-
       console.error("Register error:", err);
-
       setDialog({
         show: true,
         title: "Error",
-        message: "Server error"
+        message: "Nagkaroon ng problema sa pag-save."
       });
-
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
     <div className="register-container">
+      <div className="register-card">
+        <h2>Employee Registration</h2>
+        <p className="subtitle">All new employees must wait for approval</p>
 
-      <h2>Employee Registration</h2>
-      <p>All new employees must wait for admin approval.</p>
+        <form onSubmit={handleSubmit}>
+          <div className="input-row">
+            <input
+              type="text"
+              placeholder="First Name"
+              value={firstName}
+              onChange={(e) => setFname(e.target.value)}
+              required
+            />
+            <input
+              type="text"
+              placeholder="Middle Name (Optional)"
+              value={middleName}
+              onChange={(e) => setMname(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e) => setLname(e.target.value)}
+              required
+            />
+          </div>
 
-      <form onSubmit={handleSubmit}>
+          <input
+            type="email"
+            placeholder="Email Address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        <input
-          type="text"
-          placeholder="First Name"
-          value={firstName}
-          onChange={(e) => setFname(e.target.value)}
-          required
-        />
+          {/* Password Field with Toggle */}
+          <div className="password-field-container" style={{ position: "relative", marginBottom: "15px" }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPass(e.target.value)}
+              required
+              style={{ width: "100%", paddingRight: "45px" }}
+            />
+            <span 
+              onClick={() => setShowPassword(!showPassword)}
+              style={{ position: "absolute", right: "15px", top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#666" }}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </span>
+          </div>
 
-        <input
-          type="text"
-          placeholder="Middle Name (optional)"
-          value={middleName}
-          onChange={(e) => setMname(e.target.value)}
-        />
+          {/* Confirm Password Field with Toggle */}
+          <div className="password-field-container" style={{ position: "relative", marginBottom: "15px" }}>
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPass(e.target.value)}
+              required
+              style={{ width: "100%", paddingRight: "45px" }}
+            />
+            <span 
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              style={{ position: "absolute", right: "15px", top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#666" }}
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </span>
+          </div>
 
-        <input
-          type="text"
-          placeholder="Last Name"
-          value={lastName}
-          onChange={(e) => setLname(e.target.value)}
-          required
-        />
+          <div className="section-select">
+            <label>Assigned Section:</label>
+            <select
+              value={section}
+              onChange={(e) => setSection(e.target.value)}
+              required
+            >
+              {/* BAGUGO: Placeholder option na hindi mapipili muli */}
+              <option value="" disabled hidden>Select Section</option>
+              <option value="Inventory">Inventory</option>
+              <option value="Finance">Finance</option>
+            </select>
+          </div>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? "Sending Code..." : "Create Account"}
+          </button>
+        </form>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPass(e.target.value)}
-          required
-        />
+        <p className="login-link">
+          Already have an account? <Link to="/">Login here</Link>
+        </p>
+      </div>
 
-        <label>Section</label>
-
-        <select
-          value={section}
-          onChange={(e) => setSection(e.target.value)}
-        >
-          <option value="Inventory">Inventory</option>
-          <option value="Finance">Reports</option>
-        </select>
-
-        <button type="submit" disabled={loading}>
-          {loading ? "Registering..." : "Create Employee Account"}
-        </button>
-
-      </form>
-
-      <p>
-        <Link to="/">Back to Login</Link>
-      </p>
-
+      {/* Main Alert Dialog */}
       {dialog.show && (
         <div className="dialog-overlay">
           <div className="dialog-box">
@@ -227,26 +256,31 @@ function Register() {
         </div>
       )}
 
+      {/* OTP Verification Popup */}
       {showCodePopup && (
         <div className="dialog-overlay">
-          <div className="dialog-box">
+          <div className="dialog-box verification-popup">
             <h3>Email Verification</h3>
-            <p>Enter the verification code sent to your email.</p>
-
+            <p>Ilagay ang 6-digit code na ipinadala namin sa iyong inbox.</p>
             <input
               type="text"
-              placeholder="Verification Code"
+              placeholder="######"
               value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value)}
+              maxLength={6}
+              className="otp-input"
             />
-
-            <button onClick={verifyAndRegister} disabled={loading}>
-              Verify & Create Account
-            </button>
+            <div className="popup-actions">
+              <button onClick={verifyAndRegister} className="verify-btn" disabled={loading}>
+                {loading ? "Verifying..." : "Verify & Register"}
+              </button>
+              <button onClick={() => setShowCodePopup(false)} className="cancel-btn">
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

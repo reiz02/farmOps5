@@ -17,7 +17,6 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 1. Client-side validation
     if (!email.trim() || !password) {
       setDialog({ show: true, message: "Please fill all required fields.", type: "error" });
       return;
@@ -38,7 +37,6 @@ function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        // 2. Successful Login: Store user data and redirect
         localStorage.setItem("user", JSON.stringify(data.user));
         localStorage.setItem("isLoggedIn", "true");
         setDialog({ show: true, message: "Login successful!", type: "success" });
@@ -47,45 +45,46 @@ function Login() {
           navigate("/dashboard");
         }, 1200);
       } else {
-        // 3. Backend Error handling
         setDialog({ show: true, message: data.error || "Login failed", type: "error" });
       }
     } catch (err) {
       console.error("Login error:", err);
       setDialog({ show: true, message: "Server connection error.", type: "error" });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
     <div className="register-container">
       <h2>Login</h2>
+    
 
       <form onSubmit={handleSubmit}>
-        <label>Email</label>
+        <label htmlFor="email">Email Address</label>
         <input
+          id="email"
           type="email"
-          placeholder="Enter email"
+          placeholder="Enter your email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
 
-        <label>Password</label>
+        <label htmlFor="password">Password</label>
         <input
+          id="password"
           type="password"
-          placeholder="Enter password"
+          placeholder="••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
         />
 
-        {/* FORGOT PASSWORD LINK - Redirects to the route in App.js */}
         <div style={{ textAlign: "right", marginBottom: "15px" }}>
           <Link 
             to="/forgot-password" 
-            style={{ fontSize: "13px", color: "#2563eb", textDecoration: "none" }}
+            style={{ fontSize: "13px", color: "#3b82f6", textDecoration: "none" }}
           >
             Forgot Password?
           </Link>
@@ -96,15 +95,18 @@ function Login() {
         </button>
       </form>
 
-      <p style={{ marginTop: "15px", textAlign: "center" }}>
-        Don't have an account? <Link to="/register">Register</Link>
+      <p style={{ marginTop: "20px", fontSize: "14px", color: "#9ca3af" }}>
+        Don't have an account?{" "}
+        <Link to="/register" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: "600" }}>
+          Register
+        </Link>
       </p>
 
-      {/* Reusable Dialog Box for Success/Error */}
+      {/* Dialog Box */}
       {dialog.show && (
         <div className="dialog-overlay">
-          <div className={`dialog-box ${dialog.type}`}>
-            <h3>{dialog.type === "error" ? "Error" : "Success"}</h3>
+          <div className="dialog-box">
+            <h3 className={dialog.type}>{dialog.type === "error" ? "Error" : "Success"}</h3>
             <p>{dialog.message}</p>
             <button onClick={closeDialog}>Close</button>
           </div>

@@ -7,120 +7,163 @@ body {
   align-items: center;
   background: linear-gradient(135deg, #0f172a, #1f2937, #020617);
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  padding: 20px; /* Space para sa mobile screens */
+  box-sizing: border-box;
 }
 
-/* ===== REGISTER CARD ===== */
-.register-container {
-  width: 420px;
-  padding: 40px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 25px 45px rgba(0, 0, 0, 0.35);
-  animation: fadeIn 0.4s ease;
-}
-
-/* ===== ADMIN REGISTER CARD ===== */
-.admin-setup-container {
+/* ===== REGISTER & ADMIN CARD ===== */
+/* Pinagsama para sa consistency pero may custom sizing */
+.register-container,
+.admin-card {
   width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  max-width: 420px;
+  padding: 30px; /* Saktong space lang */
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.4s ease;
+  box-sizing: border-box;
 }
 
+/* Dark mode specific para sa Admin Card */
 .admin-card {
   background: #1f2937;
-  color: #fff;
-  padding: 40px;
-  border-radius: 18px;
-  width: 400px;
-  box-shadow: 0 25px 45px rgba(0, 0, 0, 0.35);
-  animation: fadeIn 0.4s ease;
+  color: #f3f4f6;
+}
+
+/* ===== TITLES & SUBTITLES ===== */
+.register-container h2,
+.admin-card h2 {
+  text-align: center;
+  margin: 0 0 8px 0; /* Binawasan ang margin */
+  font-size: 22px;
+  color: #0f172a;
 }
 
 .admin-card h2 {
-  text-align: center;
-  margin-bottom: 15px;
+  color: #ffffff;
 }
 
 .admin-card p {
   text-align: center;
   margin-bottom: 20px;
   color: #fbbf24;
+  font-size: 14px;
 }
 
-/* ===== TITLE ===== */
-.register-container h2 {
+.subtitle {
   text-align: center;
-  margin-bottom: 25px;
-  color: #0f172a;
-  font-size: 24px;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+/* ===== INPUT GRID (Yung pinaghiwalay na names) ===== */
+.input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 0; /* Handled by individual inputs */
 }
 
 /* ===== INPUT FIELDS ===== */
-.register-container input,
-.register-container select,
-.admin-card input {
+input,
+select {
   width: 100%;
-  height: 45px;
-  margin-bottom: 14px;
+  height: 42px; /* Standardized height para siksik */
+  margin-bottom: 12px;
   padding: 10px 14px;
-  font-size: 15px;
+  font-size: 14px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
   background: #f9fafb;
+  box-sizing: border-box;
   transition: all 0.25s ease;
 }
 
+/* Admin specific inputs */
 .admin-card input {
-  border: none;
+  border: 1px solid #374151;
   background: #374151;
   color: #fff;
 }
 
 .admin-card input::placeholder {
-  color: #d1d5db;
-}
-
-/* ===== PLACEHOLDER ===== */
-input::placeholder {
   color: #9ca3af;
 }
 
-/* ===== INPUT FOCUS ===== */
+/* ===== PASSWORD FIELD WRAPPER (Eye Icon) ===== */
+.password-field-container {
+  position: relative;
+  width: 100%;
+}
+
+.password-field-container input {
+  padding-right: 45px; /* Space para sa icon */
+}
+
+.password-field-container span {
+  position: absolute;
+  right: 14px;
+  top: 11px; /* Saktong gitna ng 42px input */
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.password-field-container span:hover {
+  color: #2563eb;
+}
+
+/* ===== FOCUS STATES ===== */
 input:focus,
-select:focus,
-.admin-card input:focus {
+select:focus {
   outline: none;
   border-color: #2563eb;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .admin-card input:focus {
   background: #4b5563;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+  border-color: #3b82f6;
 }
 
-/* ===== SECTION LABEL ===== */
-.register-container label {
-  font-size: 13px;
+/* ===== LABELS & LINKS ===== */
+label {
+  display: block;
+  font-size: 12px;
   font-weight: 600;
-  color: #374151;
-  margin-top: 6px;
+  color: #475569;
+  margin-bottom: 5px;
+  margin-left: 2px;
 }
 
-/* ===== ERROR MESSAGE ===== */
-.error-message {
-  color: #ef4444;
-  font-size: 14px;
-  margin-top: -5px;
-  margin-bottom: 10px;
+.admin-card label {
+  color: #9ca3af;
+}
+
+.login-link, 
+.register-container a {
+  display: block;
   text-align: center;
+  margin-top: 15px;
+  text-decoration: none;
+  font-size: 14px;
+  color: #2563eb;
+  font-weight: 500;
 }
 
-/* ===== BUTTON ===== */
+.login-link a:hover, 
+.register-container a:hover {
+  text-decoration: underline;
+}
+
+/* ===== BUTTONS ===== */
 button,
-.admin-card button {
+.admin-btn {
   width: 100%;
   padding: 12px;
   border-radius: 10px;
@@ -128,134 +171,87 @@ button,
   margin-top: 10px;
   background: linear-gradient(135deg, #2563eb, #1e40af);
   color: #ffffff;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
 }
 
-.admin-card button {
-  margin-top: 10px;
-}
-
-/* ===== BUTTON HOVER ===== */
 button:hover,
-.admin-card button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.4);
+.admin-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+  filter: brightness(1.1);
 }
 
-/* ===== BUTTON CLICK ===== */
-button:active,
-.admin-card button:active {
-  transform: translateY(0);
+button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
 }
 
-/* ===== BACK TO LOGIN LINK ===== */
-.register-container a {
-  display: block;
-  text-align: center;
-  margin-top: 18px;
-  text-decoration: none;
-  font-size: 14px;
-  color: #2563eb;
-  font-weight: 500;
-}
-
-.register-container a:hover {
-  text-decoration: underline;
-}
-
-/* ===== CARD ANIMATION ===== */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 480px) {
-  .register-container {
-    width: 90%;
-    padding: 30px;
-  }
-
-  .admin-card {
-    width: 90%;
-    padding: 30px;
-  }
-}
-
-/* ===== DIALOG / MODAL ===== */
+/* ===== DIALOG / MODALS ===== */
 .dialog-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0,0,0,0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 999;
+  z-index: 1000;
 }
 
 .dialog-box {
-  background: #fff;
-  padding: 25px 30px;
-  border-radius: 12px;
-  max-width: 400px;
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 16px;
+  max-width: 380px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-.dialog-box h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  color: #ef4444;
+.admin-card .dialog-box {
+  background: #1f2937;
 }
 
-.dialog-box.success h3 {
-  color: #10b981;
+/* ===== OTP BOXES ===== */
+.otp-container {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 20px 0;
 }
 
-.dialog-box p {
-  margin-bottom: 20px;
-  color: #333;
-}
-
-.dialog-box button {
-  padding: 8px 18px;
-  border: none;
-  background: #2563eb;
-  color: #fff;
+.otp-box {
+  width: 40px;
+  height: 48px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  border: 2px solid #e2e8f0;
   border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
+  background: #f8fafc;
 }
 
-.dialog-box button:hover {
-  background: #1e40af;
+/* ===== ANIMATIONS & RESPONSIVE ===== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.otp-container{
- display:flex;
- gap:10px;
- justify-content:center;
- margin:15px 0;
+@media (max-height: 780px) {
+  .register-container, .admin-card {
+    padding: 20px 25px;
+  }
+  input, select { margin-bottom: 8px; height: 38px; }
+  h2 { font-size: 20px; }
 }
 
-.otp-box{
- width:40px;
- height:45px;
- text-align:center;
- font-size:20px;
- border:1px solid #ccc;
- border-radius:5px;
+@media (max-width: 480px) {
+  .register-container, .admin-card {
+    width: 95%;
+    padding: 20px;
+  }
 }

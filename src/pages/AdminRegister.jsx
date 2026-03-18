@@ -1,87 +1,133 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
 import "./adminRegister.css";
 
 function AdminRegister() {
+  // Security & Lock States
+  const [isAdminExists, setIsAdminExists] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // Form States
   const [firstName, setFirstName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // UI States
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [dialog, setDialog] = useState({ show: false, title: "", message: "" });
   const [verificationCode, setVerificationCode] = useState("");
   const [showCodePopup, setShowCodePopup] = useState(false);
+  const [dialog, setDialog] = useState({ show: false, title: "", message: "" });
 
   const navigate = useNavigate();
 
-  const handleDialogClose = () => setDialog({ show: false, title: "", message: "" });
+  // ==========================================
+  // 1. Check if an Admin is already registered
+  // ==========================================
+  useEffect(() => {
+    const checkSystemStatus = async () => {
+      try {
+        // Nagdagdag ng timestamp (?t=) at no-store para i-force ang browser na kumuha ng bagong data
+        const response = await fetch(`http://localhost:5000/api/check-admin?t=${Date.now()}`, {
+          method: "GET",
+          headers: {
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          },
+          cache: "no-store"
+        });
 
+        const data = await response.json();
+        
+        // I-set ang state base sa actual data mula sa server
+        setIsAdminExists(data.exists);
+      } catch (err) {
+        console.error("Connection to server failed.");
+        setIsAdminExists(false); // Default to false kung may error
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkSystemStatus();
+  }, []);
+
+  const handleDialogClose = () => {
+    setDialog({ show: false, title: "", message: "" });
+    if (dialog.title === "Success") {
+      navigate("/");
+    }
+  };
+
+  // ==========================================
+  // 2. Request OTP Code
+  // ==========================================
   const handleAdminSubmit = async (e) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      setDialog({
+        show: true,
+        title: "Error",
+        message: "Passwords do not match!"
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-
       const response = await fetch("http://localhost:5000/api/send-code", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-
         setShowCodePopup(true);
-
         setDialog({
           show: true,
           title: "Verification",
-          message: "A verification code was sent to your email."
+          message: "Isang verification code ang ipinadala sa iyong email."
         });
-
       } else {
-
         setDialog({
           show: true,
           title: "Error",
-          message: data.error || "Failed to send verification code"
+          message: data.error || "Failed to send code."
         });
-
       }
-
     } catch (err) {
-
       setDialog({
         show: true,
         title: "Error",
-        message: "Server connection failed"
+        message: "Hindi makakonekta sa server."
       });
-
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
+  // ==========================================
+  // 3. Finalize Registration
+  // ==========================================
   const verifyAndRegisterAdmin = async () => {
-
     setLoading(true);
-
     try {
-
       const response = await fetch("http://localhost:5000/api/register-admin", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firstName,
-          middleName,
-          lastName,
-          email,
+          firstName: firstName.trim(),
+          middleName: middleName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim().toLowerCase(),
           password,
           code: verificationCode
         }),
@@ -90,177 +136,183 @@ function AdminRegister() {
       const data = await response.json();
 
       if (response.ok) {
-
         setDialog({
           show: true,
           title: "Success",
-          message: data.message
+          message: "Admin account successfully created!"
         });
-
         setShowCodePopup(false);
-
-        setTimeout(() => navigate("/"), 2500);
-
       } else {
-
         setDialog({
           show: true,
           title: "Error",
-          message: data.error || "Admin registration failed"
+          message: data.error || "Invalid verification code."
         });
-
       }
-
     } catch (err) {
-
       setDialog({
         show: true,
         title: "Error",
-        message: "Server error"
+        message: "Nagkaroon ng problema sa pag-verify."
       });
-
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
+  // Loading Screen habang nag-che-check ng status
+  if (checking) {
+    return (
+      <div className="admin-setup-container">
+        <div className="admin-card">
+          <p>Checking system security...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // UI kapag may Admin na sa system
+  if (isAdminExists) {
+    return (
+      <div className="admin-setup-container">
+        <div className="admin-card">
+          <Lock size={60} color="#ef4444" style={{ marginBottom: "20px" }} />
+          <h2>Registration Locked</h2>
+          <p>Ang system na ito ay mayroon nang Administrator account.</p>
+          <button onClick={() => navigate("/")} className="admin-btn">
+            Bumalik sa Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Registration Form UI
   return (
     <div className="admin-setup-container">
       <div className="admin-card">
+        <ShieldCheck size={40} color="#2563eb" style={{ marginBottom: "10px" }} />
         <h2>Admin Registration</h2>
-        <p>Restricted Access</p>
+        <p>System Administrator Setup</p>
 
         <form onSubmit={handleAdminSubmit}>
-          <input
-            type="text"
-            placeholder="First Name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Middle Name (optional)"
-            value={middleName}
-            onChange={(e) => setMiddleName(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Last Name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            required
-          />
+          <div className="input-group">
+            <input
+              type="text"
+              placeholder="First Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+            <input
+              type="text"
+              placeholder="Middle Name (Optional)"
+              value={middleName}
+              onChange={(e) => setMiddleName(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
+          </div>
+
           <input
             type="email"
-            placeholder="Email"
+            placeholder="Admin Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Registering..." : "Register Admin"}
+          <div className="password-wrapper" style={{ position: "relative", marginBottom: "15px" }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Create Admin Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{ width: "100%", paddingRight: "45px" }}
+            />
+            <span
+              onClick={() => setShowPassword(!showPassword)}
+              style={{ position: "absolute", right: "15px", top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#888" }}
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </span>
+          </div>
+
+          <div className="password-wrapper" style={{ position: "relative", marginBottom: "15px" }}>
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm Admin Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              style={{ width: "100%", paddingRight: "45px" }}
+            />
+            <span
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              style={{ position: "absolute", right: "15px", top: "50%", transform: "translateY(-50%)", cursor: "pointer", color: "#888" }}
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </span>
+          </div>
+
+          <button type="submit" className="admin-btn" disabled={loading}>
+            {loading ? "Processing..." : "Register Administrator"}
           </button>
         </form>
       </div>
 
+      {/* Dialog Overlay */}
       {dialog.show && (
         <div className="dialog-overlay">
           <div className="dialog-box">
             <h3>{dialog.title}</h3>
             <p>{dialog.message}</p>
-            <button
-              onClick={() => {
-                handleDialogClose();
-                if (dialog.title === "Success") navigate("/");
-              }}
-            >
-              OK
-            </button>
+            <button onClick={handleDialogClose}>OK</button>
           </div>
         </div>
       )}
 
-    {showCodePopup && (
-  <div
-    className="dialog-overlay"
-    style={{
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      backgroundColor: "rgba(0,0,0,0.7)",
-      zIndex: 1000,
-    }}
-  >
-    <div
-      className="dialog-box"
-      style={{
-        background: "#1f1f1f",
-        padding: "30px",
-        borderRadius: "10px",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-        maxWidth: "400px",
-        width: "90%",
-        textAlign: "center",
-        color: "#f5f5f5",
-      }}
-    >
-      <h3 style={{ marginBottom: "15px", color: "#fff" }}>Admin Verification</h3>
-      <p style={{ marginBottom: "20px", color: "#ddd" }}>
-        Enter the 6-digit code sent to your email.
-      </p>
-
-      <input
-        type="text"
-        placeholder="Enter code"
-        value={verificationCode}
-        onChange={(e) => setVerificationCode(e.target.value)}
-        maxLength={6}
-        style={{
-          width: "80%",
-          padding: "10px",
-          fontSize: "16px",
-          textAlign: "center",
-          border: "1px solid #555",
-          borderRadius: "5px",
-          backgroundColor: "#333",
-          color: "#fff",
-          marginBottom: "20px",
-        }}
-      />
-
-      <button
-        onClick={verifyAndRegisterAdmin}
-        disabled={loading || verificationCode.length < 6}
-        style={{
-          width: "85%",
-          padding: "10px",
-          fontSize: "16px",
-          backgroundColor: "#4CAF50",
-          color: "#fff",
-          border: "none",
-          borderRadius: "5px",
-          cursor: loading || verificationCode.length < 6 ? "not-allowed" : "pointer",
-        }}
-      >
-        {loading ? "Verifying..." : "Verify & Register Admin"}
-      </button>
-    </div>
-  </div>
-)}
+      {/* Verification Popup */}
+      {showCodePopup && (
+        <div className="dialog-overlay">
+          <div className="dialog-box verification-popup">
+            <h3>Identity Verification</h3>
+            <p>I-enter ang code na sinend sa <strong>{email}</strong></p>
+            <input
+              type="text"
+              placeholder="000000"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              maxLength={6}
+              className="code-input"
+              style={{ textAlign: 'center', fontSize: '24px', letterSpacing: '4px' }}
+            />
+            <div className="popup-buttons" style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button 
+                onClick={verifyAndRegisterAdmin} 
+                disabled={loading || verificationCode.length < 6}
+                className="verify-btn"
+                style={{ flex: 1 }}
+              >
+                {loading ? "Verifying..." : "Verify & Complete"}
+              </button>
+              <button 
+                onClick={() => setShowCodePopup(false)} 
+                className="cancel-btn"
+                style={{ flex: 1, backgroundColor: '#6b7280' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

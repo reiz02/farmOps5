@@ -121,7 +121,7 @@ const inventoryAccess = async (req, res, next) => {
 // ===========================
 // EMAIL / NODEMAILER SETUP
 // ===========================
-const verificationCodes = {}; // temporary store for codes
+const verificationCodes = {}; 
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -134,6 +134,25 @@ const transporter = nodemailer.createTransport({
 // ===========================
 // AUTH ROUTES
 // ===========================
+
+// CHECK IF ADMIN EXISTS (Updated for Debugging & Cache-Control)
+app.get("/api/check-admin", async (req, res) => {
+  try {
+    const admin = await User.findOne({ role: "admin" });
+    
+    // Debug log para sa terminal
+    console.log("--- Admin Security Check ---");
+    console.log("Checking database for Admin role...");
+    console.log("Result:", admin ? `Found: ${admin.email}` : "No Admin Found");
+
+    // Force no-cache para sa browser
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.json({ exists: !!admin });
+  } catch (err) {
+    console.error("❌ Admin check error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 app.post("/api/send-code", async (req, res) => {
   try {
@@ -179,13 +198,16 @@ app.post("/api/register", async (req, res) => {
 app.post("/api/register-admin", async (req, res) => {
   try {
     const { firstName, middleName, lastName, email, password, code } = req.body;
+
+    const adminExists = await User.findOne({ role: "admin" });
+    if (adminExists) {
+      return res.status(403).json({ error: "Administrator already exists in the system." });
+    }
+
     if (verificationCodes[email] != code) {
       return res.status(400).json({ error: "Invalid verification code" });
     }
     delete verificationCodes[email];
-
-    const existing = await User.findOne({ email: email.trim().toLowerCase() });
-    if (existing) return res.status(400).json({ error: "Email already exists" });
 
     const hashed = await bcrypt.hash(password, 10);
     const admin = new User({
@@ -226,9 +248,8 @@ app.post("/api/login", async (req, res) => {
 });
 
 // ===========================
-// NEW: FORGOT PASSWORD ROUTES
+// FORGOT PASSWORD
 // ===========================
-
 app.post("/api/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
@@ -381,7 +402,7 @@ app.delete("/api/earnings/:id", async (req, res) => {
 });
 
 // ===========================
-// DASHBOARD / REPORTS
+// REPORTS
 // ===========================
 app.get("/api/reports", async (req, res) => {
   try {
@@ -403,9 +424,7 @@ app.get("/api/reports", async (req, res) => {
   }
 });
 
-// ===========================
 // CRON JOB
-// ===========================
 cron.schedule("0 0 * * *", async () => {
   const report = await Report.findOne();
   if (report) {
@@ -416,8 +435,5 @@ cron.schedule("0 0 * * *", async () => {
   }
 }, { timezone: "Asia/Manila" });
 
-// ===========================
-// SERVER START
-// ===========================
 app.get("/", (req, res) => res.send("🚀 FarmOps Server Running"));
 app.listen(5000, () => console.log("🚀 Server running on http://localhost:5000"));
