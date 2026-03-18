@@ -6,15 +6,12 @@ const path = require("path");
 const bcrypt = require("bcrypt");
 const cron = require("node-cron");
 const fs = require('fs');
-const dns = require('dns');
-
-// 🔥 DNS Fix para sa MongoDB Atlas connectivity issues
-dns.setServers(['8.8.8.8', '1.1.1.1']);
+const nodemailer = require("nodemailer");
 
 const app = express();
 
 // ===========================
-// MIDDLEWARE & CORS
+// CORS & MIDDLEWARE
 // ===========================
 app.use(
   cors({
@@ -30,7 +27,7 @@ if (!fs.existsSync('uploads')) {
 }
 
 // ===========================
-// IMAGE STORAGE (Multer)
+// IMAGE STORAGE
 // ===========================
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -48,40 +45,53 @@ app.use("/uploads", express.static("uploads"));
 // MONGODB CONNECTION
 // ===========================
 mongoose
-  .connect("mongodb+srv://reicha:charm123@cluster0.vnlcxrd.mongodb.net/FarmOpsDB?retryWrites=true&w=majority")
-  .then(() => console.log("✅ MongoDB Connected (with DNS fix)"))
-  .catch((err) => console.log("❌ MongoDB Error:", err));
+  .connect(
+    "mongodb://reicha:charm123@ac-rrphu9p-shard-00-00.vnlcxrd.mongodb.net:27017,ac-rrphu9p-shard-00-01.vnlcxrd.mongodb.net:27017,ac-rrphu9p-shard-00-02.vnlcxrd.mongodb.net:27017/?ssl=true&replicaSet=atlas-sajxzk-shard-0&authSource=admin&appName=Cluster0",
+    {
+      serverSelectionTimeoutMS: 5000,
+      bufferCommands: false,
+    }
+  )
+  .then(() => console.log("✅ MongoDB Connected!"))
+  .catch((err) => {
+    console.error("❌ CONNECTION FAILED:", err.message);
+    process.exit(1);
+  });
 
 // ===========================
-// SCHEMAS & MODELS
+// SCHEMAS
 // ===========================
-const userSchema = new mongoose.Schema({
-  firstName: { type: String, required: true, trim: true },
-  middleName: { type: String, trim: true },
-  lastName: { type: String, required: true, trim: true },
-  email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ["employee", "admin"], default: "employee" },
-  section: { type: String, default: "Inventory" },
-  status: { type: String, enum: ["pending", "approved"], default: "pending" },
-}, { timestamps: true });
+const userSchema = new mongoose.Schema(
+  {
+    firstName: { type: String, required: true, trim: true },
+    middleName: { type: String, trim: true },
+    lastName: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["employee", "admin"], default: "employee" },
+    section: { type: String, default: "Inventory" },
+    status: { type: String, enum: ["pending", "approved"], default: "pending" },
+  },
+  { timestamps: true }
+);
 const User = mongoose.model("User", userSchema);
 
-const productSchema = new mongoose.Schema({
-  name: String,
-  price: Number,
-  stock: Number,
-  section: { type: String, default: "Inventory" },
-  image: String,
-}, { timestamps: true });
+const productSchema = new mongoose.Schema(
+  {
+    name: String,
+    price: Number,
+    stock: Number,
+    section: { type: String, default: "Inventory" },
+    image: String,
+  },
+  { timestamps: true }
+);
 const Product = mongoose.model("Product", productSchema);
 
-const earningsSchema = new mongoose.Schema({
-  employeeEmail: String,
-  amount: Number,
-  month: Number,
-  year: Number
-}, { timestamps: true });
+const earningsSchema = new mongoose.Schema(
+  { employeeEmail: String, amount: Number, month: Number, year: Number },
+  { timestamps: true }
+);
 const Earnings = mongoose.model("Earnings", earningsSchema);
 
 const reportSchema = new mongoose.Schema({
@@ -91,14 +101,16 @@ const reportSchema = new mongoose.Schema({
 const Report = mongoose.model("Report", reportSchema);
 
 // ===========================
-// CUSTOM MIDDLEWARE
+// MIDDLEWARE
 // ===========================
 const inventoryAccess = async (req, res, next) => {
   try {
     const userId = req.headers.userid;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
+
     if (user.role === "admin" || user.section === "Inventory") return next();
     return res.status(403).json({ error: "Inventory access only" });
   } catch (err) {
@@ -107,57 +119,86 @@ const inventoryAccess = async (req, res, next) => {
 };
 
 // ===========================
-// AUTH & USER PROFILE ROUTES
+// EMAIL / NODEMAILER SETUP
+// ===========================
+const verificationCodes = {}; // temporary store for codes
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "andresvivi143@gmail.com",
+    pass: "bkvqqditbtcoqfad"
+  }
+});
+
+// ===========================
+// AUTH ROUTES
 // ===========================
 
-// EMPLOYEE REGISTER
+app.post("/api/send-code", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const code = Math.floor(100000 + Math.random() * 900000);
+    verificationCodes[email] = code;
+
+    await transporter.sendMail({
+      from: "FarmOps System",
+      to: email,
+      subject: "FarmOps Email Verification",
+      text: `Your verification code is: ${code}`
+    });
+    res.json({ message: "Verification code sent" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to send email" });
+  }
+});
+
 app.post("/api/register", async (req, res) => {
   try {
-    const { firstName, middleName, lastName, email, password, section } = req.body;
-    const existing = await User.findOne({ email: email.trim().toLowerCase() });
+    const { firstName, middleName, lastName, email, password, section, code } = req.body;
+    if (verificationCodes[email] != code) {
+      return res.status(400).json({ error: "Invalid verification code" });
+    }
+    delete verificationCodes[email];
+
+    const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ error: "Email exists" });
 
     const hashed = await bcrypt.hash(password, 10);
     const user = new User({
-      firstName, middleName, lastName,
-      email: email.trim().toLowerCase(),
-      password: hashed,
-      section: section || "Inventory",
-      role: "employee",
-      status: "pending",
+      firstName, middleName, lastName, email,
+      password: hashed, section, role: "employee", status: "pending"
     });
     await user.save();
-    res.status(201).json({ message: "Employee registered successfully!" });
+    res.json({ message: "Account created. Waiting for admin approval." });
   } catch (err) {
-    res.status(500).json({ error: "Registration failed" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-// ADMIN REGISTER
 app.post("/api/register-admin", async (req, res) => {
   try {
-    const { firstName, middleName, lastName, email, password } = req.body;
+    const { firstName, middleName, lastName, email, password, code } = req.body;
+    if (verificationCodes[email] != code) {
+      return res.status(400).json({ error: "Invalid verification code" });
+    }
+    delete verificationCodes[email];
+
     const existing = await User.findOne({ email: email.trim().toLowerCase() });
-    if (existing) return res.status(400).json({ error: "Email exists" });
+    if (existing) return res.status(400).json({ error: "Email already exists" });
 
     const hashed = await bcrypt.hash(password, 10);
-    const adminUser = new User({
-      firstName, middleName, lastName,
-      email: email.trim().toLowerCase(),
-      password: hashed,
-      role: "admin",
-      status: "approved",
-      section: "Management"
+    const admin = new User({
+      firstName, middleName, lastName, email: email.trim().toLowerCase(),
+      password: hashed, role: "admin", section: "Admin", status: "approved",
     });
-
-    await adminUser.save();
-    res.status(201).json({ message: "Admin registered successfully!" });
+    await admin.save();
+    res.status(201).json({ message: "Admin verified and created successfully" });
   } catch (err) {
-    res.status(500).json({ error: "Admin registration failed" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-// LOGIN
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -174,71 +215,96 @@ app.post("/api/login", async (req, res) => {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
-        email: user.email, 
+        email: user.email,
         role: user.role,
         section: user.section,
       },
     });
   } catch (err) {
-    res.status(500).json({ error: "Login failed" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-// ✏️ UPDATE USER NAME (Ang in-update na route)
-app.put("/api/users/update-name", async (req, res) => {
+// ===========================
+// NEW: FORGOT PASSWORD ROUTES
+// ===========================
+
+app.post("/api/forgot-password", async (req, res) => {
   try {
-    const { email, firstName, lastName } = req.body;
-    
-    // Server-side validation
-    if (!firstName || !lastName) {
-      return res.status(400).json({ error: "First name and Last name are required" });
+    const { email } = req.body;
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user) return res.status(404).json({ error: "Email not found" });
+
+    const code = Math.floor(100000 + Math.random() * 900000);
+    verificationCodes[email] = code;
+
+    await transporter.sendMail({
+      from: "FarmOps System",
+      to: email,
+      subject: "Password Reset Code",
+      text: `Your password reset code is: ${code}`
+    });
+    res.json({ message: "Reset code sent to email" });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to send reset email" });
+  }
+});
+
+app.post("/api/reset-password", async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (verificationCodes[email] != code) {
+      return res.status(400).json({ error: "Invalid reset code" });
     }
 
-    const updatedUser = await User.findOneAndUpdate(
-      { email: email.trim().toLowerCase() },
-      { 
-        firstName: firstName.trim(), 
-        lastName: lastName.trim() 
-      },
-      { new: true } // I-return ang updated version ng document
-    );
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await User.findOneAndUpdate({ email: email.trim().toLowerCase() }, { password: hashed });
+    delete verificationCodes[email];
 
-    if (!updatedUser) return res.status(404).json({ error: "User not found" });
-
-    // I-return ang buong user object para ma-update ang state at localStorage sa frontend
-    res.json({
-      message: "Name updated successfully",
-      user: {
-        id: updatedUser._id,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        section: updatedUser.section,
-      }
-    });
+    res.json({ message: "Password updated successfully" });
   } catch (err) {
-    console.error("Update error:", err);
-    res.status(500).json({ error: "Failed to update name" });
+    res.status(500).json({ error: "Failed to update password" });
   }
 });
 
 // ===========================
-// ADMIN & PRODUCTS ROUTES
+// EMPLOYEE MANAGEMENT
 // ===========================
 app.get("/api/employees", async (req, res) => {
-  const employees = await User.find({ role: "employee" }).sort({ createdAt: -1 });
-  res.json(employees);
+  try {
+    const employees = await User.find({ role: "employee" }).sort({ createdAt: -1 });
+    res.json(employees);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch employees" });
+  }
 });
 
 app.put("/api/employees/approve/:id", async (req, res) => {
-  const emp = await User.findByIdAndUpdate(req.params.id, { status: "approved" }, { new: true });
-  res.json({ message: "Employee approved", employee: emp });
+  try {
+    const emp = await User.findByIdAndUpdate(req.params.id, { status: "approved" }, { new: true });
+    if (!emp) return res.status(404).json({ error: "Employee not found" });
+    res.json({ message: "Employee approved", employee: emp });
+  } catch (err) {
+    res.status(500).json({ error: "Approval failed" });
+  }
 });
 
+app.delete("/api/employees/:id", async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "Employee deleted" });
+  } catch (err) {
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
+
+// ===========================
+// PRODUCTS
+// ===========================
 app.post("/api/products", inventoryAccess, upload.single("image"), async (req, res) => {
   try {
     const { name, price, stock, section } = req.body;
+    if (!name || !price || !stock) return res.status(400).json({ error: "Missing product fields" });
     const product = new Product({
       name, price, stock, section,
       image: req.file ? `/uploads/${req.file.filename}` : ""
@@ -246,7 +312,7 @@ app.post("/api/products", inventoryAccess, upload.single("image"), async (req, r
     await product.save();
     res.json(product);
   } catch (err) {
-    res.status(500).json({ error: "Failed to add product" });
+    res.status(500).json({ error: "Product creation failed" });
   }
 });
 
@@ -255,26 +321,36 @@ app.get("/api/products", inventoryAccess, async (req, res) => {
   res.json(products);
 });
 
+app.put("/api/products/:id", inventoryAccess, async (req, res) => {
+  const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  res.json(product);
+});
+
+app.delete("/api/products/:id", inventoryAccess, async (req, res) => {
+  await Product.findByIdAndDelete(req.params.id);
+  res.json({ message: "Product deleted" });
+});
+
 // ===========================
-// EARNINGS & REPORTS
+// EARNINGS
 // ===========================
+app.get("/api/earnings", async (req, res) => {
+  const history = await Earnings.find().sort({ createdAt: -1 });
+  res.json(history);
+});
+
 app.post("/api/earnings", async (req, res) => {
   try {
     const { employeeEmail, amount } = req.body;
-    const today = new Date().toLocaleDateString();
+    const now = new Date();
+    const today = now.toLocaleDateString();
 
     await new Earnings({
-      employeeEmail,
-      amount: Number(amount),
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
+      employeeEmail, amount: Number(amount),
+      month: now.getMonth() + 1, year: now.getFullYear(),
     }).save();
 
-    const report = await Report.findOneAndUpdate(
-      {},
-      { $inc: { dailyEarnings: Number(amount) } },
-      { upsert: true, new: true }
-    );
+    const report = await Report.findOneAndUpdate({}, { $inc: { dailyEarnings: Number(amount) } }, { upsert: true, new: true });
 
     const existingIndex = report.dailyHistory.findIndex(d => d.date === today);
     if (existingIndex >= 0) {
@@ -289,6 +365,24 @@ app.post("/api/earnings", async (req, res) => {
   }
 });
 
+app.delete("/api/earnings/:id", async (req, res) => {
+  try {
+    await Earnings.findByIdAndDelete(req.params.id);
+    const today = new Date().toLocaleDateString();
+    const all = await Earnings.find();
+    const newDaily = all
+      .filter((e) => new Date(e.createdAt).toLocaleDateString() === today)
+      .reduce((sum, e) => sum + e.amount, 0);
+    await Report.findOneAndUpdate({}, { dailyEarnings: newDaily });
+    res.json({ message: "Deleted and recalculated" });
+  } catch (err) {
+    res.status(500).json({ error: "Delete failed" });
+  }
+});
+
+// ===========================
+// DASHBOARD / REPORTS
+// ===========================
 app.get("/api/reports", async (req, res) => {
   try {
     const today = new Date().toLocaleDateString();
@@ -305,28 +399,25 @@ app.get("/api/reports", async (req, res) => {
     }
     res.json({ dailyEarnings: report.dailyEarnings, dailyHistory: report.dailyHistory });
   } catch (err) {
-    res.status(500).json({ error: "Report fetch failed" });
+    res.status(500).json({ error: "Failed to fetch reports" });
   }
 });
 
 // ===========================
-// CRON JOB (Midnight Reset)
+// CRON JOB
 // ===========================
 cron.schedule("0 0 * * *", async () => {
   const report = await Report.findOne();
   if (report) {
-    report.dailyHistory.push({
-      date: new Date().toLocaleDateString(),
-      total: report.dailyEarnings
-    });
+    report.dailyHistory.push({ date: new Date().toLocaleDateString(), total: report.dailyEarnings });
     report.dailyEarnings = 0;
     await report.save();
-    console.log("📅 Daily reset completed.");
+    console.log("Daily earnings reset to 0");
   }
 }, { timezone: "Asia/Manila" });
 
 // ===========================
-// SERVER
+// SERVER START
 // ===========================
-app.get("/", (req, res) => res.send("🚀 FarmOps API is Running"));
+app.get("/", (req, res) => res.send("🚀 FarmOps Server Running"));
 app.listen(5000, () => console.log("🚀 Server running on http://localhost:5000"));

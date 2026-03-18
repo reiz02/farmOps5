@@ -1,105 +1,133 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { FaTrash, FaPlusCircle, FaChartLine } from "react-icons/fa";
 
 const ReportsPage = () => {
   const [amount, setAmount] = useState("");
   const [submissions, setSubmissions] = useState([]);
+  
+  // Kunin ang user mula sa localStorage
+  const user = JSON.parse(localStorage.getItem("user"));
 
   const fetchSubmissions = useCallback(async () => {
     try {
+      // TAMA: /api/earnings (hindi earnings-history)
       const res = await fetch("http://localhost:5000/api/earnings");
+      
+      if (!res.ok) throw new Error("Server error");
+
       const data = await res.json();
-      setSubmissions(Array.isArray(data) ? data : []);
+      
+      // TAMA: Ang backend mo ay nagbabalik ng Array ([...])
+      // I-filter para yung email lang ni 'rei' o ng user ang lumabas
+      const filtered = data.filter(item => item.employeeEmail === user?.email);
+      
+      setSubmissions(filtered);
     } catch (err) {
-      console.log("Fetch error:", err);
+      console.error("Fetch error:", err);
     }
-  }, []);
+  }, [user?.email]);
 
   useEffect(() => {
-    fetchSubmissions();
-  }, [fetchSubmissions]);
+    if (user?.email) {
+      fetchSubmissions();
+    }
+  }, [fetchSubmissions, user?.email]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!amount) return;
+
     try {
-      await fetch("http://localhost:5000/api/earnings", {
+      const response = await fetch("http://localhost:5000/api/earnings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeEmail: "admin@farmops.com", amount: amount })
+        body: JSON.stringify({
+          employeeEmail: user.email, 
+          amount: Number(amount)
+        })
       });
-      setAmount("");
-      fetchSubmissions();
+
+      if (response.ok) {
+        setAmount("");
+        // REFRESH: Tawagin ulit para magpakita ang bagong entry sa table
+        await fetchSubmissions(); 
+        alert("Earnings submitted successfully!");
+      }
     } catch (err) {
-      console.log("Submit error:", err);
+      console.error("Submit error:", err);
     }
   };
 
   const deleteRecord = async (id) => {
-    if (window.confirm("Are you sure?")) {
-      await fetch(`http://localhost:5000/api/earnings/${id}`, { method: "DELETE" });
+    if (window.confirm("Delete this record?")) {
+      await fetch(`http://localhost:5000/api/earnings/${id}`, {
+        method: "DELETE"
+      });
       fetchSubmissions();
     }
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "25px" }}>
-      <div style={{ backgroundColor: "white", padding: "25px", borderRadius: "16px", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
-        <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#1e293b", marginBottom: "20px" }}>Submit Daily Earnings</h2>
-        <form onSubmit={handleSubmit} style={{ display: "flex", gap: "15px" }}>
-          <input
-            type="number"
-            placeholder="Enter daily income (₱)"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-            style={{ flex: 1, padding: "12px 15px", borderRadius: "10px", border: "1px solid #e2e8f0", outline: "none" }}
-          />
-          <button type="submit" style={{ backgroundColor: "#57b894", color: "white", border: "none", padding: "12px 25px", borderRadius: "10px", fontWeight: "700", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
-            <FaPlusCircle /> Submit Report
-          </button>
-        </form>
-      </div>
+    <div style={{ padding: "40px" }}>
+      <h2>Submit Earnings</h2>
+      <p>Logged in as: <strong>{user?.email}</strong></p>
 
-      <div style={{ backgroundColor: "white", padding: "25px", borderRadius: "16px", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" }}>
-        <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#1e293b", marginBottom: "20px" }}>Submission History</h3>
-        
-        {submissions.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
-            <FaChartLine size={40} style={{ marginBottom: "10px", opacity: 0.2 }} />
-            <p>No reports submitted yet.</p>
-          </div>
-        ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                <th style={thStyle}>Employee</th>
-                <th style={thStyle}>Amount</th>
-                <th style={thStyle}>Date</th>
-                <th style={thStyle}>Actions</th>
+      <form onSubmit={handleSubmit} style={{ marginBottom: "30px" }}>
+        <input
+          type="number"
+          placeholder="Enter earnings"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          required
+          style={{ padding: "8px", borderRadius: "4px", border: "1px solid #ccc" }}
+        />
+        <button type="submit" style={{ 
+          marginLeft: "10px", 
+          padding: "8px 20px", 
+          backgroundColor: "#2563eb", 
+          color: "white", 
+          border: "none", 
+          borderRadius: "4px",
+          cursor: "pointer" 
+        }}>
+          Submit
+        </button>
+      </form>
+
+      <hr />
+
+      <h3>Your Submission History</h3>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "20px" }}>
+        <thead>
+          <tr style={{ textAlign: "left", borderBottom: "2px solid #333" }}>
+            <th style={{ padding: "10px" }}>Email</th>
+            <th style={{ padding: "10px" }}>Amount</th>
+            <th style={{ padding: "10px" }}>Date</th>
+            <th style={{ padding: "10px" }}>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {submissions.length > 0 ? (
+            submissions.map((item) => (
+              <tr key={item._id} style={{ borderBottom: "1px solid #ddd" }}>
+                <td style={{ padding: "10px" }}>{item.employeeEmail}</td>
+                <td style={{ padding: "10px" }}>₱{item.amount.toLocaleString()}</td>
+                <td style={{ padding: "10px" }}>
+                   {new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString()}
+                </td>
+                <td style={{ padding: "10px" }}>
+                  <button onClick={() => deleteRecord(item._id)} style={{ color: "red" }}>Delete</button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {submissions.map((item) => (
-                <tr key={item._id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                  <td style={tdStyle}>{item.employeeEmail}</td>
-                  <td style={tdStyle}>₱{Number(item.amount).toLocaleString()}</td>
-                  <td style={tdStyle}>{new Date(item.createdAt).toLocaleDateString()}</td>
-                  <td style={tdStyle}>
-                    <button onClick={() => deleteRecord(item._id)} style={{ background: "#fee2e2", color: "#ef4444", border: "none", padding: "8px", borderRadius: "8px", cursor: "pointer" }}>
-                      <FaTrash size={12} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="4" style={{ padding: "20px", textAlign: "center" }}>No submissions found.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };
-
-const thStyle = { textAlign: "left", padding: "15px", color: "#64748b", fontSize: "13px", fontWeight: "600" };
-const tdStyle = { padding: "15px", color: "#1e293b", fontSize: "14px" };
 
 export default ReportsPage;

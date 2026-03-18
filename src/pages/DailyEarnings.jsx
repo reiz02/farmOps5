@@ -11,31 +11,37 @@ import {
 
 function DailyEarnings({ data = [] }) {
 
- const formattedData = data.map(item => ({
-  date: item.date,
-  amount: item.total   // <-- match backend
-}));
+  const formattedData = data.map(item => {
+    const d = new Date(item.date);
+
+    const fullDate = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+
+    return {
+      date: fullDate,
+      amount: item.amount   // ✅ FIXED
+    };
+  });
 
   return (
-    <div>
-      <h3>Daily Revenue Trend</h3>
-
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={formattedData}>
-          <CartesianGrid stroke="#eee" />
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Line
-            type="monotone"
-            dataKey="amount"
-            stroke="#4e73df"
-            strokeWidth={3}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-
-    </div>
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={formattedData}>
+        <CartesianGrid stroke="#eee" />
+        <XAxis dataKey="date" />
+        <YAxis />
+        <Tooltip />
+        <Line
+          type="monotone"
+          dataKey="amount"
+          stroke="#4e73df"
+          strokeWidth={3}
+          dot={{ r: 5 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
   );
 }
 
