@@ -32,7 +32,7 @@ function AdminRegister() {
   useEffect(() => {
     const checkSystemStatus = async () => {
       try {
-        // Nagdagdag ng timestamp (?t=) at no-store para i-force ang browser na kumuha ng bagong data
+        // Added timestamp (?t=) and no-store to force browser to fetch fresh data
         const response = await fetch(`http://localhost:5000/api/check-admin?t=${Date.now()}`, {
           method: "GET",
           headers: {
@@ -44,11 +44,11 @@ function AdminRegister() {
 
         const data = await response.json();
         
-        // I-set ang state base sa actual data mula sa server
+        // Set state based on actual data from server
         setIsAdminExists(data.exists);
       } catch (err) {
         console.error("Connection to server failed.");
-        setIsAdminExists(false); // Default to false kung may error
+        setIsAdminExists(false); // Default to false if there's an error
       } finally {
         setChecking(false);
       }
@@ -94,7 +94,7 @@ function AdminRegister() {
         setDialog({
           show: true,
           title: "Verification",
-          message: "Isang verification code ang ipinadala sa iyong email."
+          message: "A verification code has been sent to your email."
         });
       } else {
         setDialog({
@@ -107,7 +107,7 @@ function AdminRegister() {
       setDialog({
         show: true,
         title: "Error",
-        message: "Hindi makakonekta sa server."
+        message: "Could not connect to the server."
       });
     } finally {
       setLoading(false);
@@ -153,14 +153,14 @@ function AdminRegister() {
       setDialog({
         show: true,
         title: "Error",
-        message: "Nagkaroon ng problema sa pag-verify."
+        message: "An error occurred during verification."
       });
     } finally {
       setLoading(false);
     }
   };
 
-  // Loading Screen habang nag-che-check ng status
+  // Loading Screen while checking status
   if (checking) {
     return (
       <div className="admin-setup-container">
@@ -171,16 +171,16 @@ function AdminRegister() {
     );
   }
 
-  // UI kapag may Admin na sa system
+  // UI if Admin already exists in system
   if (isAdminExists) {
     return (
       <div className="admin-setup-container">
         <div className="admin-card">
           <Lock size={60} color="#ef4444" style={{ marginBottom: "20px" }} />
           <h2>Registration Locked</h2>
-          <p>Ang system na ito ay mayroon nang Administrator account.</p>
+          <p>This system already has an existing Administrator account.</p>
           <button onClick={() => navigate("/")} className="admin-btn">
-            Bumalik sa Login
+            Back to Login
           </button>
         </div>
       </div>
@@ -283,7 +283,7 @@ function AdminRegister() {
         <div className="dialog-overlay">
           <div className="dialog-box verification-popup">
             <h3>Identity Verification</h3>
-            <p>I-enter ang code na sinend sa <strong>{email}</strong></p>
+            <p>Please enter the code sent to <strong>{email}</strong></p>
             <input
               type="text"
               placeholder="000000"
